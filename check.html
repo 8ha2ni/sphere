@@ -3,166 +3,158 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SPHERE 接続チェック</title>
+<title>SPHERE 接続チェック 2</title>
 <style>
   :root{--ok:#2ecc71;--ng:#FF4D2E;--dim:#8a8a8a;}
   *{box-sizing:border-box;margin:0;padding:0;}
   html{background:#000;}
-  body{background:#000;color:#fff;font-size:16px;line-height:1.7;
+  body{background:#000;color:#fff;font-size:16px;line-height:1.65;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
-    padding:28px 20px 60px;}
-  h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px;}
-  .sub{font-size:13px;color:var(--dim);margin-bottom:24px;}
-  .t{border:1px solid #262626;background:#0c0c0c;padding:16px 18px;margin-bottom:10px;}
-  .t .name{font-size:15px;font-weight:600;}
-  .t .desc{font-size:12px;color:var(--dim);margin-top:2px;}
-  .t .res{font-size:15px;font-weight:700;margin-top:10px;
-    font-variant-numeric:tabular-nums;}
-  .t .res.ok{color:var(--ok);} .t .res.ng{color:var(--ng);} .t .res.wait{color:var(--dim);}
-  .t .note{font-size:12px;color:var(--dim);margin-top:4px;word-break:break-all;}
-  .env{border:1px solid #262626;background:#0c0c0c;padding:16px 18px;margin-top:20px;
-    font-size:12px;color:var(--dim);word-break:break-all;line-height:1.9;}
-  .env b{color:#fff;font-weight:600;}
-  .verdict{border:1px solid var(--ng);background:#17110f;padding:18px;margin-top:20px;
-    font-size:14px;line-height:1.8;display:none;}
-  .verdict.on{display:block;}
-  .verdict h2{font-size:16px;color:var(--ng);margin-bottom:8px;}
-  button{margin-top:22px;width:100%;padding:16px;border:1px solid #fff;background:none;
+    padding:26px 18px 70px;}
+  h1{font-size:21px;font-weight:700;margin-bottom:4px;}
+  .sub{font-size:13px;color:var(--dim);margin-bottom:20px;}
+  .grp{font-size:11px;letter-spacing:.18em;color:var(--dim);margin:22px 0 8px;text-transform:uppercase;}
+  .t{border:1px solid #262626;background:#0c0c0c;padding:13px 15px;margin-bottom:8px;}
+  .t .name{font-size:14.5px;font-weight:600;}
+  .t .desc{font-size:11.5px;color:var(--dim);margin-top:1px;word-break:break-all;}
+  .t .res{font-size:15px;font-weight:700;margin-top:8px;font-variant-numeric:tabular-nums;}
+  .ok{color:var(--ok);} .ng{color:var(--ng);} .wait{color:var(--dim);}
+  .verdict{border:1px solid #444;background:#141110;padding:18px;margin-top:24px;font-size:14px;line-height:1.8;}
+  .verdict h2{font-size:16px;margin-bottom:8px;}
+  .env{border:1px solid #262626;background:#0c0c0c;padding:14px 16px;margin-top:16px;
+    font-size:11.5px;color:var(--dim);word-break:break-all;line-height:1.85;}
+  .env b{color:#fff;}
+  button{margin-top:20px;width:100%;padding:15px;border:1px solid #fff;background:none;
     color:#fff;font-family:inherit;font-size:15px;border-radius:10px;}
-  .img{margin-top:10px;width:60px;height:60px;background:#1a1a1a;border-radius:4px;}
+  .img{margin-top:8px;width:52px;height:52px;background:#1a1a1a;border-radius:4px;}
 </style>
 </head>
 <body>
 
-<h1>接続チェック</h1>
-<p class="sub">SPHERE が Apple に届いているかを1つずつ確かめます。自動で始まります。</p>
+<h1>接続チェック 2</h1>
+<p class="sub">どの形なら Apple に届くかを総当たりで調べます。自動で始まります。</p>
 
-<div class="t" id="t1">
-  <div class="name">1. 曲情報の取得（lookup）</div>
-  <div class="desc">トップの球にジャケ写を出すのに使う窓口</div>
-  <div class="res wait" id="r1">確認中…</div>
-  <div class="note" id="n1"></div>
+<div class="grp">検索 — 4通りの形で試す</div>
+<div id="searchTests"></div>
+
+<div class="grp">曲情報 — 2通りの形で試す</div>
+<div id="lookupTests"></div>
+
+<div class="grp">比較用</div>
+<div class="t">
+  <div class="name">ジャケット写真（mzstatic）</div>
+  <div class="res wait" id="rArt">確認中…</div>
+  <img class="img" id="imArt" alt="">
+</div>
+<div class="t">
+  <div class="name">three.js（Apple 以外の通信）</div>
+  <div class="res wait" id="rThree">確認中…</div>
 </div>
 
-<div class="t" id="t2">
-  <div class="name">2. 曲の検索（search）</div>
-  <div class="desc">検索窓が使う窓口。ここが失敗している</div>
-  <div class="res wait" id="r2">確認中…</div>
-  <div class="note" id="n2"></div>
-</div>
-
-<div class="t" id="t3">
-  <div class="name">3. ジャケット写真の読み込み</div>
-  <div class="desc">Apple の画像置き場（mzstatic）</div>
-  <div class="res wait" id="r3">確認中…</div>
-  <div class="note" id="n3"></div>
-  <img class="img" id="im3" alt="">
-</div>
-
-<div class="t" id="t4">
-  <div class="name">4. three.js の読み込み</div>
-  <div class="desc">球を描く部品。CDN（cdnjs）から取る</div>
-  <div class="res wait" id="r4">確認中…</div>
-  <div class="note" id="n4"></div>
-</div>
-
-<div class="t" id="t5">
-  <div class="name">5. Apple に別の方法で問い合わせ</div>
-  <div class="desc">JSONP ではなく通常の通信で試す。原因の切り分け用</div>
-  <div class="res wait" id="r5">確認中…</div>
-  <div class="note" id="n5"></div>
-</div>
-
-<div class="verdict" id="v"><h2 id="vh"></h2><div id="vb"></div></div>
-
+<div class="verdict" id="v"><h2 id="vh">判定中…</h2><div id="vb"></div></div>
 <div class="env" id="env"></div>
-
-<button onclick="location.reload()">もう一度ためす</button>
+<button onclick="location.reload(true)">もう一度ためす</button>
 
 <script>
-function set(i,ok,msg,note){
-  const r=document.getElementById("r"+i);
-  r.className="res "+(ok?"ok":"ng");
-  r.textContent=(ok?"○ ":"× ")+msg;
-  if(note) document.getElementById("n"+i).textContent=note;
+const NEW_S = "https://itunes.apple.com/search";
+const OLD_S = "https://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/wsSearch";
+const NEW_L = "https://itunes.apple.com/lookup";
+const OLD_L = "https://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/wsLookup";
+
+/* 遮断の規則は「/search?term=」のように書かれていることが多い。
+   引数の順番を変えるだけで外れることがあるので、両方の並びを試す */
+const SEARCH_CASES = [
+  {id:"s1", name:"A. 新しい入口・通常の並び",  url:u=>NEW_S+"?term=test&country=JP&media=music&entity=song&limit=1&callback="+u},
+  {id:"s2", name:"B. 新しい入口・並べ替え",    url:u=>NEW_S+"?callback="+u+"&country=JP&media=music&entity=song&limit=1&term=test"},
+  {id:"s3", name:"C. 旧来の入口・通常の並び",  url:u=>OLD_S+"?term=test&country=JP&media=music&entity=song&limit=1&callback="+u},
+  {id:"s4", name:"D. 旧来の入口・並べ替え",    url:u=>OLD_S+"?callback="+u+"&country=JP&media=music&entity=song&limit=1&term=test"}
+];
+const LOOKUP_CASES = [
+  {id:"l1", name:"E. 新しい入口（lookup）",   url:u=>NEW_L+"?id=947748526&country=JP&entity=song&callback="+u},
+  {id:"l2", name:"F. 旧来の入口（wsLookup）", url:u=>OLD_L+"?id=947748526&country=JP&entity=song&callback="+u}
+];
+
+function card(c, host){
+  const d=document.createElement("div"); d.className="t";
+  d.innerHTML='<div class="name">'+c.name+'</div>'+
+    '<div class="desc">'+c.url("cb").replace(/^https:\/\//,"").slice(0,80)+'…</div>'+
+    '<div class="res wait" id="r_'+c.id+'">確認中…</div>';
+  document.getElementById(host).appendChild(d);
 }
-/* script タグで読み込めるか試す。失敗の速さも測る（速い失敗＝遮断の疑い） */
+SEARCH_CASES.forEach(c=>card(c,"searchTests"));
+LOOKUP_CASES.forEach(c=>card(c,"lookupTests"));
+
 function tryScript(url, cbName){
   return new Promise(res=>{
-    const t0=performance.now();
-    const s=document.createElement("script");
-    let done=false;
+    const t0=performance.now(); const s=document.createElement("script"); let done=false;
     const fin=(ok,why)=>{ if(done)return; done=true;
-      clearTimeout(tm); if(cbName) delete window[cbName]; s.remove();
-      res({ok, why, ms:Math.round(performance.now()-t0)}); };
+      clearTimeout(tm); delete window[cbName]; s.remove();
+      res({ok,why,ms:Math.round(performance.now()-t0)}); };
     const tm=setTimeout(()=>fin(false,"時間切れ"),10000);
-    if(cbName) window[cbName]=()=>fin(true,"応答あり");
-    s.onload=()=>{ if(!cbName) fin(true,"読み込めた"); };
-    s.onerror=()=>fin(false,"読み込み拒否");
+    window[cbName]=()=>fin(true,"通った");
+    s.onerror=()=>fin(false,"拒否された");
     s.src=url; document.head.appendChild(s);
   });
 }
-const results={};
+const R={};
 (async()=>{
-  /* 1. lookup */
-  let r=await tryScript("https://itunes.apple.com/lookup?id=947748526&country=JP&entity=song&callback=__k1","__k1");
-  results.lookup=r; set(1,r.ok,r.why+"（"+r.ms+"ミリ秒）");
-
-  /* 2. search */
-  r=await tryScript("https://itunes.apple.com/search?term=test&country=JP&media=music&entity=song&limit=1&callback=__k2","__k2");
-  results.search=r; set(2,r.ok,r.why+"（"+r.ms+"ミリ秒）");
-
-  /* 3. ジャケット写真 */
+  let i=0;
+  for(const c of SEARCH_CASES.concat(LOOKUP_CASES)){
+    const cb="__c"+(i++);
+    const r=await tryScript(c.url(cb), cb);
+    R[c.id]=r;
+    const el=document.getElementById("r_"+c.id);
+    el.className="res "+(r.ok?"ok":"ng");
+    el.textContent=(r.ok?"○ ":"× ")+r.why+"（"+r.ms+"ミリ秒）";
+  }
+  /* 比較用 */
   await new Promise(res=>{
-    const t0=performance.now(), im=document.getElementById("im3");
-    const fin=(ok,why)=>{ const ms=Math.round(performance.now()-t0);
-      results.art={ok,why,ms}; set(3,ok,why+"（"+ms+"ミリ秒）"); res(); };
-    im.onload=()=>fin(true,"表示できた");
-    im.onerror=()=>fin(false,"読み込み拒否");
-    setTimeout(()=>{ if(!results.art) fin(false,"時間切れ"); },10000);
+    const t0=performance.now(), im=document.getElementById("imArt"); let done=false;
+    const fin=(ok,why)=>{ if(done)return; done=true;
+      const ms=Math.round(performance.now()-t0); R.art={ok,ms};
+      const el=document.getElementById("rArt"); el.className="res "+(ok?"ok":"ng");
+      el.textContent=(ok?"○ ":"× ")+why+"（"+ms+"ミリ秒）"; res(); };
+    im.onload=()=>fin(true,"表示できた"); im.onerror=()=>fin(false,"拒否された");
+    setTimeout(()=>fin(false,"時間切れ"),10000);
     im.src="https://is1-ssl.mzstatic.com/image/thumb/Music3/v4/fc/5c/44/fc5c4442-ad6e-3866-0b87-fdc913642341/VEATP-31040.jpg/100x100bb.jpg";
   });
-
-  /* 4. three.js */
-  r=await tryScript("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",null);
-  results.three=r; set(4,r.ok,r.why+"（"+r.ms+"ミリ秒）");
-
-  /* 5. 通常の通信（CORS で止まるのが正常。通信自体が遮断されていると別のエラーになる） */
   {
-    const t0=performance.now();
-    try{
-      await fetch("https://itunes.apple.com/search?term=test&country=JP&media=music&entity=song&limit=1",{mode:"cors"});
-      const ms=Math.round(performance.now()-t0);
-      results.fetch={ok:true,why:"応答あり",ms}; set(5,true,"応答あり（"+ms+"ミリ秒）");
-    }catch(e){
-      const ms=Math.round(performance.now()-t0);
-      results.fetch={ok:false,why:String(e&&e.message||e),ms};
-      set(5,false,"失敗（"+ms+"ミリ秒）", String(e&&e.message||e));
-    }
+    const cb="__t9";
+    const r=await new Promise(res=>{
+      const t0=performance.now(); const s=document.createElement("script"); let done=false;
+      const fin=(ok,why)=>{ if(done)return; done=true; clearTimeout(tm); s.remove();
+        res({ok,why,ms:Math.round(performance.now()-t0)}); };
+      const tm=setTimeout(()=>fin(false,"時間切れ"),10000);
+      s.onload=()=>fin(true,"読み込めた"); s.onerror=()=>fin(false,"拒否された");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+      document.head.appendChild(s);
+    });
+    R.three=r;
+    const el=document.getElementById("rThree"); el.className="res "+(r.ok?"ok":"ng");
+    el.textContent=(r.ok?"○ ":"× ")+r.why+"（"+r.ms+"ミリ秒）";
   }
 
   /* 判定 */
-  const L=results.lookup.ok, S=results.search.ok, A=results.art.ok, T=results.three.ok;
+  const okList=Object.keys(R).filter(k=>/^[sl]\d$/.test(k) && R[k].ok);
   const v=document.getElementById("v"), vh=document.getElementById("vh"), vb=document.getElementById("vb");
-  let head="", body="";
-  if(L&&S&&A&&T){ head="すべて通っています"; body="この端末・この回線では問題ありません。検索が失敗するなら、別の原因を探します。";
-    v.style.borderColor="#2ecc71"; vh.style.color="#2ecc71"; }
-  else if(!L&&!S&&!A&&T){ head="Apple への通信だけが遮断されています";
-    body="three.js は取れているのでネット自体は繋がっています。Apple のドメインだけが止められている状態です。広告ブロッカー、コンテンツブロッカー、機能制限、プロファイル、または回線側の遮断が疑われます。"; }
-  else if(!S&&L){ head="検索の窓口だけが遮断されています";
-    body="曲情報の取得は通っているのに、検索だけ止まっています。ブロッカーの規則が search を狙って止めている可能性が高いです。"; }
-  else if(!T){ head="ネット接続そのものが不安定です";
-    body="部品の読み込みにも失敗しています。回線を変えて（Wi-Fi ↔ モバイル通信）もう一度試してください。"; }
-  else { head="一部だけ失敗しています"; body="上の各行の結果をそのまま伝えてください。"; }
-  vh.textContent=head; vb.textContent=body; v.classList.add("on");
+  if(okList.length===0){
+    vh.textContent="Apple への通信が全部止められています";
+    vh.style.color="#FF4D2E"; v.style.borderColor="#FF4D2E";
+    vb.textContent="この端末では、どの形でも Apple の窓口に届きません。端末全体に効く遮断（VPN型の広告ブロッカー、DNS フィルタ、構成プロファイル、機能制限）が疑われます。画像だけ通っているのは、画像置き場が別のドメインだからです。";
+  }else if(R.s1 && !R.s1.ok){
+    vh.textContent="通る形が見つかりました";
+    vh.style.color="#2ecc71"; v.style.borderColor="#2ecc71";
+    vb.textContent="通ったのは "+okList.join(" / ")+" です。この形に切り替えれば検索が動きます。";
+  }else{
+    vh.textContent="この端末では全部通っています";
+    vh.style.color="#2ecc71"; v.style.borderColor="#2ecc71";
+    vb.textContent="遮断は起きていません。別の原因を探します。";
+  }
 
-  /* 環境 */
-  const c=navigator.connection||{};
   document.getElementById("env").innerHTML=
-    "<b>端末情報</b><br>"+navigator.userAgent+
-    "<br><br><b>回線</b>: "+(navigator.onLine?"オンライン":"オフライン")+
-    (c.effectiveType?(" / "+c.effectiveType):"")+
-    (c.saveData?" / データセーバー有効":"")+
+    "<b>結果まとめ</b>: "+["s1","s2","s3","s4","l1","l2"].map(k=>k+"="+(R[k]&&R[k].ok?"○":"×")).join(" ")+
+    "<br><br><b>端末</b>: "+navigator.userAgent+
+    "<br><b>回線</b>: "+(navigator.onLine?"オンライン":"オフライン")+
     "<br><b>アドレス</b>: "+location.href;
 })();
 </script>
