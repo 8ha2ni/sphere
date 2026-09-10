@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SPHERE 接続チェック</title>
+<style>
+  :root{--ok:#2ecc71;--ng:#FF4D2E;--dim:#8a8a8a;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{background:#000;}
+  body{background:#000;color:#fff;font-size:16px;line-height:1.7;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:28px 20px 60px;}
+  h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px;}
+  .sub{font-size:13px;color:var(--dim);margin-bottom:24px;}
+  .t{border:1px solid #262626;background:#0c0c0c;padding:16px 18px;margin-bottom:10px;}
+  .t .name{font-size:15px;font-weight:600;}
+  .t .desc{font-size:12px;color:var(--dim);margin-top:2px;}
+  .t .res{font-size:15px;font-weight:700;margin-top:10px;
+    font-variant-numeric:tabular-nums;}
+  .t .res.ok{color:var(--ok);} .t .res.ng{color:var(--ng);} .t .res.wait{color:var(--dim);}
+  .t .note{font-size:12px;color:var(--dim);margin-top:4px;word-break:break-all;}
+  .env{border:1px solid #262626;background:#0c0c0c;padding:16px 18px;margin-top:20px;
+    font-size:12px;color:var(--dim);word-break:break-all;line-height:1.9;}
+  .env b{color:#fff;font-weight:600;}
+  .verdict{border:1px solid var(--ng);background:#17110f;padding:18px;margin-top:20px;
+    font-size:14px;line-height:1.8;display:none;}
+  .verdict.on{display:block;}
+  .verdict h2{font-size:16px;color:var(--ng);margin-bottom:8px;}
+  button{margin-top:22px;width:100%;padding:16px;border:1px solid #fff;background:none;
+    color:#fff;font-family:inherit;font-size:15px;border-radius:10px;}
+  .img{margin-top:10px;width:60px;height:60px;background:#1a1a1a;border-radius:4px;}
+</style>
+</head>
+<body>
+
+<h1>接続チェック</h1>
+<p class="sub">SPHERE が Apple に届いているかを1つずつ確かめます。自動で始まります。</p>
+
+<div class="t" id="t1">
+  <div class="name">1. 曲情報の取得（lookup）</div>
+  <div class="desc">トップの球にジャケ写を出すのに使う窓口</div>
+  <div class="res wait" id="r1">確認中…</div>
+  <div class="note" id="n1"></div>
+</div>
+
+<div class="t" id="t2">
+  <div class="name">2. 曲の検索（search）</div>
+  <div class="desc">検索窓が使う窓口。ここが失敗している</div>
+  <div class="res wait" id="r2">確認中…</div>
+  <div class="note" id="n2"></div>
+</div>
+
+<div class="t" id="t3">
+  <div class="name">3. ジャケット写真の読み込み</div>
+  <div class="desc">Apple の画像置き場（mzstatic）</div>
+  <div class="res wait" id="r3">確認中…</div>
+  <div class="note" id="n3"></div>
+  <img class="img" id="im3" alt="">
+</div>
+
+<div class="t" id="t4">
+  <div class="name">4. three.js の読み込み</div>
+  <div class="desc">球を描く部品。CDN（cdnjs）から取る</div>
+  <div class="res wait" id="r4">確認中…</div>
+  <div class="note" id="n4"></div>
+</div>
+
+<div class="t" id="t5">
+  <div class="name">5. Apple に別の方法で問い合わせ</div>
+  <div class="desc">JSONP ではなく通常の通信で試す。原因の切り分け用</div>
+  <div class="res wait" id="r5">確認中…</div>
+  <div class="note" id="n5"></div>
+</div>
+
+<div class="verdict" id="v"><h2 id="vh"></h2><div id="vb"></div></div>
+
+<div class="env" id="env"></div>
+
+<button onclick="location.reload()">もう一度ためす</button>
+
+<script>
+function set(i,ok,msg,note){
+  const r=document.getElementById("r"+i);
+  r.className="res "+(ok?"ok":"ng");
+  r.textContent=(ok?"○ ":"× ")+msg;
+  if(note) document.getElementById("n"+i).textContent=note;
+}
+/* script タグで読み込めるか試す。失敗の速さも測る（速い失敗＝遮断の疑い） */
+function tryScript(url, cbName){
+  return new Promise(res=>{
+    const t0=performance.now();
+    const s=document.createElement("script");
+    let done=false;
+    const fin=(ok,why)=>{ if(done)return; done=true;
+      clearTimeout(tm); if(cbName) delete window[cbName]; s.remove();
+      res({ok, why, ms:Math.round(performance.now()-t0)}); };
+    const tm=setTimeout(()=>fin(false,"時間切れ"),10000);
+    if(cbName) window[cbName]=()=>fin(true,"応答あり");
+    s.onload=()=>{ if(!cbName) fin(true,"読み込めた"); };
+    s.onerror=()=>fin(false,"読み込み拒否");
+    s.src=url; document.head.appendChild(s);
+  });
+}
+const results={};
+(async()=>{
+  /* 1. lookup */
+  let r=await tryScript("https://itunes.apple.com/lookup?id=947748526&country=JP&entity=song&callback=__k1","__k1");
+  results.lookup=r; set(1,r.ok,r.why+"（"+r.ms+"ミリ秒）");
+
+  /* 2. search */
+  r=await tryScript("https://itunes.apple.com/search?term=test&country=JP&media=music&entity=song&limit=1&callback=__k2","__k2");
+  results.search=r; set(2,r.ok,r.why+"（"+r.ms+"ミリ秒）");
+
+  /* 3. ジャケット写真 */
+  await new Promise(res=>{
+    const t0=performance.now(), im=document.getElementById("im3");
+    const fin=(ok,why)=>{ const ms=Math.round(performance.now()-t0);
+      results.art={ok,why,ms}; set(3,ok,why+"（"+ms+"ミリ秒）"); res(); };
+    im.onload=()=>fin(true,"表示できた");
+    im.onerror=()=>fin(false,"読み込み拒否");
+    setTimeout(()=>{ if(!results.art) fin(false,"時間切れ"); },10000);
+    im.src="https://is1-ssl.mzstatic.com/image/thumb/Music3/v4/fc/5c/44/fc5c4442-ad6e-3866-0b87-fdc913642341/VEATP-31040.jpg/100x100bb.jpg";
+  });
+
+  /* 4. three.js */
+  r=await tryScript("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",null);
+  results.three=r; set(4,r.ok,r.why+"（"+r.ms+"ミリ秒）");
+
+  /* 5. 通常の通信（CORS で止まるのが正常。通信自体が遮断されていると別のエラーになる） */
+  {
+    const t0=performance.now();
+    try{
+      await fetch("https://itunes.apple.com/search?term=test&country=JP&media=music&entity=song&limit=1",{mode:"cors"});
+      const ms=Math.round(performance.now()-t0);
+      results.fetch={ok:true,why:"応答あり",ms}; set(5,true,"応答あり（"+ms+"ミリ秒）");
+    }catch(e){
+      const ms=Math.round(performance.now()-t0);
+      results.fetch={ok:false,why:String(e&&e.message||e),ms};
+      set(5,false,"失敗（"+ms+"ミリ秒）", String(e&&e.message||e));
+    }
+  }
+
+  /* 判定 */
+  const L=results.lookup.ok, S=results.search.ok, A=results.art.ok, T=results.three.ok;
+  const v=document.getElementById("v"), vh=document.getElementById("vh"), vb=document.getElementById("vb");
+  let head="", body="";
+  if(L&&S&&A&&T){ head="すべて通っています"; body="この端末・この回線では問題ありません。検索が失敗するなら、別の原因を探します。";
+    v.style.borderColor="#2ecc71"; vh.style.color="#2ecc71"; }
+  else if(!L&&!S&&!A&&T){ head="Apple への通信だけが遮断されています";
+    body="three.js は取れているのでネット自体は繋がっています。Apple のドメインだけが止められている状態です。広告ブロッカー、コンテンツブロッカー、機能制限、プロファイル、または回線側の遮断が疑われます。"; }
+  else if(!S&&L){ head="検索の窓口だけが遮断されています";
+    body="曲情報の取得は通っているのに、検索だけ止まっています。ブロッカーの規則が search を狙って止めている可能性が高いです。"; }
+  else if(!T){ head="ネット接続そのものが不安定です";
+    body="部品の読み込みにも失敗しています。回線を変えて（Wi-Fi ↔ モバイル通信）もう一度試してください。"; }
+  else { head="一部だけ失敗しています"; body="上の各行の結果をそのまま伝えてください。"; }
+  vh.textContent=head; vb.textContent=body; v.classList.add("on");
+
+  /* 環境 */
+  const c=navigator.connection||{};
+  document.getElementById("env").innerHTML=
+    "<b>端末情報</b><br>"+navigator.userAgent+
+    "<br><br><b>回線</b>: "+(navigator.onLine?"オンライン":"オフライン")+
+    (c.effectiveType?(" / "+c.effectiveType):"")+
+    (c.saveData?" / データセーバー有効":"")+
+    "<br><b>アドレス</b>: "+location.href;
+})();
+</script>
+</body>
+</html>
