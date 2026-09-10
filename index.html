@@ -604,6 +604,39 @@ async function jsonp2(url){
   try{ return await jsonp(url); }
   catch(e){ return await jsonp(url); }
 }
+
+/* ===================================================================
+   Apple の窓口には、同じ結果を返す入口が2つある。
+   ・新しい入口  /search        /lookup
+   ・旧来の入口  …/ws/wsSearch  …/ws/wsLookup
+
+   iPhone の実機で確かめたところ、コンテンツブロッカー（広告ブロッカー）が
+   /search だけを狙って遮断していた（198ミリ秒で読み込み拒否。
+   同じドメインの /lookup と画像は通っていた）。
+   ブロッカーは日本の iPhone では珍しくないので、
+   遮断されたら旧来の入口に切り替える。通った方を覚えておいて次から先に使う。
+   ※ サーバーを挟む案は採らない。Apple の制限は IP ごとなので、
+     全員が同じ IP になると「サイト全体で1分20回」という致命的な制限になる。
+   =================================================================== */
+const APPLE_HOSTS = [
+  {search:"https://itunes.apple.com/search",
+   lookup:"https://itunes.apple.com/lookup"},
+  {search:"https://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/wsSearch",
+   lookup:"https://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/wsLookup"}
+];
+let appleWay = 0;                 /* 通った入口を覚えておく */
+async function apple(kind, query){
+  let last;
+  for(let i=0;i<APPLE_HOSTS.length;i++){
+    const k=(appleWay+i)%APPLE_HOSTS.length;
+    try{
+      const d = await jsonp(APPLE_HOSTS[k][kind]+query);
+      appleWay = k;
+      return d;
+    }catch(e){ last = e; }
+  }
+  throw last;
+}
 /* ===================================================================
    番号から曲情報を取る（lookup）。検索とは別の窓口。
    ・17件ずつに分けて問い合わせる（URL が長くなりすぎないように）
@@ -615,7 +648,7 @@ async function lookupTracks(ids){
   for(let i=0;i<ids.length;i+=17){
     const c=ids.slice(i,i+17);
     try{
-      const d=await jsonp2(`https://itunes.apple.com/lookup?id=${c.join(",")}&country=JP&entity=song`);
+      const d=await apple("lookup",`?id=${c.join(",")}&country=JP&entity=song`);
       ((d&&d.results)||[]).forEach(r=>{
         if(r.wrapperType!=="track")return;
         got.set(String(r.trackId),{
@@ -633,7 +666,7 @@ async function runSearch(){
   if(!q){rows.innerHTML="";results=[];return;}
   rows.innerHTML=`<div class="note">検索中…</div>`;
   try{
-    const d=await jsonp2(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&country=JP&media=music&entity=song&limit=${SEARCH_LIMIT}`);
+    const d=await apple("search",`?term=${encodeURIComponent(q)}&country=JP&media=music&entity=song&limit=${SEARCH_LIMIT}`);
     const list=(d&&d.results)?d.results:[];
     results=list.map(r=>({id:String(r.trackId),title:r.trackName,artist:r.artistName,
       artwork:(r.artworkUrl100||"").replace(/\/\d+x\d+bb\./,"/600x600bb."),url:r.trackViewUrl}));
@@ -644,7 +677,7 @@ async function runSearch(){
     results=[];
     drawRows(e && e.message==="timeout"
       ? "Apple の応答が遅く、時間切れになりました。もう一度お試しください。"
-      : "Apple の検索につながりませんでした。通信環境を確認して、もう一度お試しください。");
+      : "Apple の検索につながりませんでした。広告ブロッカーが有効な場合は、このサイトで一時的に切ってお試しください。");
   }
 }
 function drawRows(msg){
