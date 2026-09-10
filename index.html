@@ -3,7 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>SPHERE — モック ver.3.2</title>
+<title>Sphere of U</title>
+<meta name="description" content="あなたを構成する12曲で、自分だけのスフィアをつくる。回して、止まった1枚をApple Musicで再生。">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+
+<!-- リンクを送ったときの見え方（LINE・iMessage・Instagram など）。
+     og:url は書かない。書くと、共有されたスフィアの URL ではなく
+     トップページの URL に置き換えて表示する場所があるため -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sphere of U">
+<meta property="og:title" content="Sphere of U">
+<meta property="og:description" content="あなたを構成する12曲で、自分だけのスフィアをつくる。">
+<meta property="og:image" content="https://sphereofu.netlify.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sphere of U">
+<meta name="twitter:description" content="あなたを構成する12曲で、自分だけのスフィアをつくる。">
+<meta name="twitter:image" content="https://sphereofu.netlify.app/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;800&display=swap" rel="stylesheet">
@@ -568,14 +587,22 @@ edit.setTracks([]);
 let done=null, chosen=[], viewing=[], results=[];
 
 /* ===== 検索 ===== */
-function jsonp(url){
+/* 携帯回線では、名前解決と暗号化の握手だけで数秒かかることがある。
+   2秒では足りず、スマホでだけ必ず失敗していた。8秒に延ばす。
+   検索中は「検索中…」、球は仮のタイルが出ているので、待っても固まって見えない */
+function jsonp(url,ms){
   return new Promise((res,rej)=>{
     const n="__c"+Math.random().toString(36).slice(2),s=document.createElement("script");
-    const tm=setTimeout(()=>{cl();rej();},2000);
+    const tm=setTimeout(()=>{cl();rej(new Error("timeout"));},ms||8000);
     function cl(){clearTimeout(tm);delete window[n];s.remove();}
-    window[n]=d=>{cl();res(d);};s.onerror=()=>{cl();rej();};
+    window[n]=d=>{cl();res(d);};s.onerror=()=>{cl();rej(new Error("network"));};
     s.src=url+"&callback="+n;document.head.appendChild(s);
   });
+}
+/* 最初の1回は接続の準備で遅くなりやすいので、静かに1度だけやり直す */
+async function jsonp2(url){
+  try{ return await jsonp(url); }
+  catch(e){ return await jsonp(url); }
 }
 /* ===================================================================
    番号から曲情報を取る（lookup）。検索とは別の窓口。
@@ -588,7 +615,7 @@ async function lookupTracks(ids){
   for(let i=0;i<ids.length;i+=17){
     const c=ids.slice(i,i+17);
     try{
-      const d=await jsonp(`https://itunes.apple.com/lookup?id=${c.join(",")}&country=JP&entity=song`);
+      const d=await jsonp2(`https://itunes.apple.com/lookup?id=${c.join(",")}&country=JP&entity=song`);
       ((d&&d.results)||[]).forEach(r=>{
         if(r.wrapperType!=="track")return;
         got.set(String(r.trackId),{
@@ -606,17 +633,18 @@ async function runSearch(){
   if(!q){rows.innerHTML="";results=[];return;}
   rows.innerHTML=`<div class="note">検索中…</div>`;
   try{
-    const d=await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&country=JP&media=music&entity=song&limit=${SEARCH_LIMIT}`);
+    const d=await jsonp2(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&country=JP&media=music&entity=song&limit=${SEARCH_LIMIT}`);
     const list=(d&&d.results)?d.results:[];
     results=list.map(r=>({id:String(r.trackId),title:r.trackName,artist:r.artistName,
       artwork:(r.artworkUrl100||"").replace(/\/\d+x\d+bb\./,"/600x600bb."),url:r.trackViewUrl}));
-    if(!results.length)throw 0;
-    drawRows();
+    drawRows();   /* 0件なら drawRows が「見つかりませんでした」を出す */
   }catch(e){
     /* 偽の曲を出してはいけない。それをスフィアに入れられると、
        曲番号でないものがアドレスに書き込まれ、共有した URL が開けなくなる */
     results=[];
-    drawRows("Apple の検索に届きませんでした。少し待ってから、もう一度お試しください。");
+    drawRows(e && e.message==="timeout"
+      ? "Apple の応答が遅く、時間切れになりました。もう一度お試しください。"
+      : "Apple の検索につながりませんでした。通信環境を確認して、もう一度お試しください。");
   }
 }
 function drawRows(msg){
