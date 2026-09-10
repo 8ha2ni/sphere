@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SPHERE — モック ver.3.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#fff; --dim:#8a8a8a; --dimmer:#4e4e4e; --line:#1c1c1c; --line2:#2b2b2b; --head:64px; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{background:#000;}
+  body{overflow-x:hidden;}
+  body{background:#000;color:var(--ink);
+    font-family:"Inter Tight",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;}
+  canvas{display:block;width:100%;height:100%;}
+
+  header{position:fixed;top:0;left:0;right:0;height:var(--head);z-index:60;
+    display:flex;align-items:center;gap:20px;padding:0 20px;
+    background:linear-gradient(#000 58%,rgba(0,0,0,0));}
+  .logo{font-size:17px;font-weight:800;letter-spacing:-.02em;cursor:pointer;}
+  .nav{display:flex;gap:20px;margin-left:auto;}
+  .nav a{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);cursor:pointer;}
+  .nav a.off{color:var(--dimmer);}
+
+  .page{display:none;background:#000;}
+  .page.on{display:block;}
+  #fader{position:fixed;inset:0;background:#000;z-index:90;opacity:0;pointer-events:none;
+    transition:opacity .4s ease;}
+  #fader.on{opacity:1;}
+
+  /* ===== ヒーロー ===== */
+  .hero{height:165vh;position:relative;}
+  .stage{position:sticky;top:0;height:100vh;overflow:hidden;}
+  .heroBall{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
+    width:min(104vw,560px);height:min(104vw,560px);}
+  .heroBall canvas{clip-path:circle(45%);}
+  .copy{position:absolute;font-weight:800;letter-spacing:-.035em;line-height:.95;
+    font-size:clamp(34px,11vw,54px);transition:opacity .5s ease;}
+  .copy.tl{left:22px;top:calc(46% - min(48vw,258px) - 26px);}
+  .copy.br{right:22px;top:calc(46% + min(48vw,258px) - 22px);text-align:right;}
+
+  /* ===== 作成 ===== */
+  .lead{padding:0 20px;}
+  .lead h2{font-weight:800;letter-spacing:-.035em;line-height:1.02;
+    font-size:clamp(26px,8.4vw,42px);}
+  .lead p{font-size:12.5px;color:var(--dim);margin-top:10px;letter-spacing:.02em;}
+
+  .stick{position:sticky;top:0;z-index:5;background:#000;padding-top:var(--head);margin-top:22px;}
+
+  /* ballHost は ballWrap と同じ大きさの入れ物。削除UIを球に重ねるためだけに置いている。
+     幅・高さは両方とも直接指定する（片方だけだと表示されなくなる） */
+  .ballHost{position:relative;width:min(62vw,280px);height:min(62vw,280px);margin:0 auto;}
+  .ballWrap{width:min(62vw,280px);height:min(62vw,280px);margin:0;
+    transition:transform .85s cubic-bezier(.22,.7,.2,1);}
+
+  .editPick{position:absolute;inset:0;z-index:6;opacity:0;pointer-events:none;
+    transition:opacity .25s ease;}
+  .editPick.on{opacity:1;}
+  .minus{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:54px;height:54px;border-radius:50%;border:1.5px solid rgba(255,255,255,.9);
+    background:rgba(0,0,0,.42);color:#fff;font-size:28px;line-height:1;
+    font-family:inherit;cursor:pointer;display:grid;place-items:center;pointer-events:none;}
+  .editPick.on .minus{pointer-events:auto;}
+  .minus:active{background:#fff;color:#000;}
+  .epMeta{position:absolute;left:0;right:0;bottom:0;padding:26px 8px 4px;text-align:center;
+    background:linear-gradient(rgba(0,0,0,0),#000 64%);}
+  .epMeta .t{font-size:13.5px;font-weight:600;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .epMeta .a{font-size:11px;color:var(--dim);margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .countRow{position:relative;padding:8px 0 10px;}
+  .count{text-align:center;font-size:10.5px;letter-spacing:.2em;color:var(--dim);
+    text-transform:uppercase;}
+  .count b{color:#fff;font-weight:600;}
+  .clear{position:absolute;right:20px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--dimmer);font-family:inherit;
+    font-size:10.5px;letter-spacing:.08em;cursor:pointer;padding:4px 0;display:none;}
+  .clear.on{display:block;}
+  .clear.armed{color:#FF4D2E;}
+
+  .searchRow{display:flex;gap:8px;padding:0 20px 12px;}
+  .search{flex:1;background:#141414;border:none;border-radius:11px;padding:13px 14px;
+    color:var(--ink);font-size:15px;font-family:inherit;}
+  .search::placeholder{color:#5c5c5c;}
+  .sBtn{flex:none;background:#fff;color:#000;border:none;border-radius:11px;width:50px;
+    font-size:22px;line-height:1;font-family:inherit;cursor:pointer;}
+
+  .rows{padding:4px 20px 0;}
+  .row{display:flex;align-items:center;gap:12px;padding:9px 0;}
+  .row .art{width:50px;height:50px;border-radius:5px;flex:none;background:#141414;object-fit:cover;}
+  .row .meta{flex:1;min-width:0;}
+  .row .t{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .a{font-size:12px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .add{flex:none;width:30px;height:30px;border-radius:50%;border:1.5px solid #3a3a3a;
+    display:grid;place-items:center;color:#bbb;font-size:17px;cursor:pointer;background:none;}
+  .add.done{background:#fff;border-color:#fff;color:#000;font-size:13px;}
+  .note{padding:14px 0;font-size:11.5px;color:var(--dimmer);line-height:1.8;}
+  .tail{height:120px;}
+
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:45;
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(rgba(0,0,0,0),#000 34%);transition:opacity .4s ease;}
+  .big{width:100%;border:none;border-radius:12px;padding:17px 0;font-size:14px;font-weight:600;
+    letter-spacing:.1em;font-family:inherit;cursor:pointer;background:#161616;color:#5c5c5c;
+    transition:background .3s,color .3s;}
+  .big.ready{background:#fff;color:#000;}
+
+  /* ===== 共通の下部 ===== */
+  .contact{margin-top:36px;padding:32px 20px 60px;border-top:1px solid var(--line);}
+  .contact h4{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--dim);}
+  .sns{display:flex;gap:10px;margin-top:14px;}
+  .sns a{flex:1;text-align:center;border:1px solid #fff;border-radius:10px;padding:13px 0;
+    font-size:12px;letter-spacing:.12em;color:var(--ink);text-decoration:none;}
+  .legal{margin-top:24px;font-size:10.5px;line-height:1.85;color:var(--dimmer);}
+
+  /* ===== 完成 ===== */
+  .doneWrap{min-height:100vh;padding-top:calc(var(--head) + 1vh);}
+  .ballBig{width:min(120vw,640px);height:min(120vw,640px);margin:2vh 0 0;
+    position:relative;left:50%;transform:translateX(-50%);}
+  .pick{text-align:center;padding:10px 20px 0;opacity:0;transition:.3s ease;min-height:104px;}
+  .pick.on{opacity:1;}
+  .pick .t{font-size:16px;font-weight:600;}
+  .pick .a{font-size:12px;color:var(--dim);margin-top:3px;}
+  .pick .go{display:inline-block;margin-top:12px;padding:9px 20px;
+    border:1px solid #2e2e2e;border-radius:999px;
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink);text-decoration:none;pointer-events:none;}
+  .pick.on .go{pointer-events:auto;}
+  .pick .go:active{background:#161616;}
+  .share{padding:20px 20px 0;opacity:0;transition:opacity .5s ease;}
+  .share.on{opacity:1;}
+  .share button{flex:1;border:1px solid #fff;background:none;color:#fff;border-radius:11px;
+    padding:14px 0;font-size:12px;font-family:inherit;cursor:pointer;}
+  /* remix が拡散の中心なので、一番上に置き、白の塗りで一番強くする */
+  .share .remixRow button{width:100%;background:#fff;color:#000;border-color:#fff;
+    font-size:13.5px;font-weight:600;}
+  .share .remixRow button:active{background:#d5d5d5;}
+  .share .subRow{display:flex;gap:9px;margin-top:9px;}
+  .share .subRow button{border-color:#2e2e2e;color:var(--dim);}
+
+  #toast{position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:95;
+    background:#fff;color:#000;font-size:12px;letter-spacing:.06em;font-weight:600;
+    padding:11px 20px;border-radius:999px;opacity:0;pointer-events:none;
+    transition:opacity .25s ease;white-space:nowrap;}
+  #toast.on{opacity:1;}
+
+  #err{position:fixed;left:10px;bottom:6px;z-index:80;font-size:9px;color:#803;display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" onclick="home()">sphere</div>
+  <nav class="nav"><a onclick="toCreate()">create</a><a class="off">view</a></nav>
+</header>
+<div id="fader"></div>
+
+<!-- ========== ページ1 ========== -->
+<div class="page on" id="pageMain">
+  <div class="hero"><div class="stage">
+    <div class="copy tl" id="cA1">sphere</div>
+    <div class="copy tl" id="cB1" style="opacity:0">好きな曲を</div>
+    <div class="heroBall"><canvas id="cvHero"></canvas></div>
+    <div class="copy br" id="cA2">of U</div>
+    <div class="copy br" id="cB2" style="opacity:0">シャッフル再生</div>
+  </div></div>
+
+  <section id="createSec">
+    <div class="lead">
+      <h2>Create your own<br>Sphere</h2>
+      <p>あなたを構成する12曲を選ぶ</p>
+    </div>
+
+    <div class="stick">
+      <div class="ballHost">
+        <div class="ballWrap" id="ballWrap"><canvas id="cvEdit"></canvas></div>
+        <div class="editPick" id="editPick">
+          <button class="minus" id="editMinus" aria-label="この曲を外す">−</button>
+          <div class="epMeta"><div class="t" id="epT"></div><div class="a" id="epA"></div></div>
+        </div>
+      </div>
+
+      <div class="countRow">
+        <div class="count" id="count"><b>0</b> / 12曲で完成</div>
+        <button class="clear" id="btnClear">全てクリア</button>
+      </div>
+
+      <div class="searchRow">
+        <input class="search" id="q" placeholder="曲名 アーティスト名">
+        <button class="sBtn" onclick="runSearch()" aria-label="検索">⌕</button>
+      </div>
+    </div>
+
+    <div class="rows" id="rows"></div>
+    <div class="tail"></div>
+  </section>
+
+  <div class="contact">
+    <h4>Contact</h4>
+    <div class="sns"><a data-sns="instagram">Instagram</a><a data-sns="tiktok">TikTok</a></div>
+    <p class="legal">
+      本サービスは楽曲の音源を配信・保持していません。再生はすべてApple Musicで行われます。<br>
+      ジャケット画像はApple提供のものを表示しているのみで、保存・再配布は行いません。<br>
+      楽曲およびジャケット画像の権利は各権利者に帰属します。<br>
+      本サービスはApple Inc.と提携・関連するものではありません。
+    </p>
+  </div>
+</div>
+
+<!-- ========== ページ2 ========== -->
+<div class="page" id="pageDone">
+  <div class="doneWrap">
+    <div class="ballBig"><canvas id="cvDone"></canvas></div>
+    <div class="pick" id="pick">
+      <div class="t" id="pickT"></div>
+      <div class="a" id="pickA"></div>
+      <a class="go" id="pickGo" target="_blank" rel="noopener">Apple Musicで開く</a>
+    </div>
+    <div class="share" id="share">
+      <div class="remixRow"><button onclick="remix()">このスフィアをもとに作る</button></div>
+      <div class="subRow">
+        <button onclick="copyLink()">リンクをコピー</button>
+        <button onclick="shareSphere()">共有</button>
+      </div>
+    </div>
+  </div>
+  <div class="contact">
+    <h4>Contact</h4>
+    <div class="sns"><a data-sns="instagram">Instagram</a><a data-sns="tiktok">TikTok</a></div>
+    <p class="legal">
+      本サービスは楽曲の音源を配信・保持していません。再生はすべてApple Musicで行われます。<br>
+      ジャケット画像はApple提供のものを表示しているのみで、保存・再配布は行いません。<br>
+      楽曲およびジャケット画像の権利は各権利者に帰属します。<br>
+      本サービスはApple Inc.と提携・関連するものではありません。
+    </p>
+  </div>
+</div>
+
+<div class="bar" id="bar"><button class="big" id="btnDone" onclick="finish()">あと12曲</button></div>
+<div id="toast"></div>
+<div id="err"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===================================================================
+   SNS のリンク。アカウントを開設したらここに URL を入れるだけで、
+   ページ1・ページ2 両方の Contact に反映される。
+   =================================================================== */
+const SNS = {
+  instagram: "",   // 例 "https://www.instagram.com/◯◯◯/"
+  tiktok:    ""    // 例 "https://www.tiktok.com/@◯◯◯"
+};
+
+/* 検索で返してもらう件数。Apple 側の上限は 200 */
+const SEARCH_LIMIT = 50;
+
+/* ===================================================================
+   トップページに出すスフィアの22曲。
+   アドレスに ?t=… が付いていないとき、これで球を組む。
+   全曲が lookup で取得できることを確認済み（2026-09）。
+
+   26曲から22曲に減らした理由：26曲は 極-7-10-7-極 の構成になり、
+   被覆54.4% / 段のすき間14.5° と隙間が目立つ。22曲は 極-6-8-6-極 で
+   被覆63.3% / すき間9.3° / 重なり0% と、この付近で最も整う。
+   （外したのは 花と雨 / 5xL / 今宵の月のように / Daydreaming の4曲）
+   =================================================================== */
+const TRACK_IDS = [
+  "947748526","1162080193","1440858717","1812857662","1700800405",
+  "1599092408","1723292124","1538111831","1759319642","1297823586",
+  "1538152429","1688356912","1733130377","1686879047","1172847903",
+  "1511079832","1119569466","597838194","1468068067","1441634911",
+  "1852433399","1571660822"
+];
+
+const D2R=Math.PI/180, TAU=Math.PI*2, MINN=12, MAXN=46;
+const FILL=0.88, ASPECT_MAX=1.10;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ===== 配置（確定版・変更禁止） ===== */
+function ringStep(lat,c){const d=TAU/c;return 2*Math.asin(Math.min(1,Math.sin(d/2)*Math.cos(lat)));}
+function cellOf(r){const lat=r.lat*D2R,h=r.h*D2R;return {w:r.pole?h:ringStep(lat,r.count),h};}
+function tileOf(r){
+  const c=cellOf(r); let w=c.w*FILL,h=c.h*FILL;
+  if(r.pole){ const s=Math.min(w,h)*0.92; w=h=s; }
+  else{
+    if(w/h>ASPECT_MAX)w=h*ASPECT_MAX;
+    if(h/w>ASPECT_MAX)h=w*ASPECT_MAX;
+  }
+  /* 角が隣に食い込まないよう、対角線の長さに上限をかける */
+  const dmin=Math.min(c.w,c.h), lim=0.575*dmin, hd=0.5*Math.hypot(w,h);
+  if(hd>lim){ const k=lim/hd; w*=k; h*=k; }
+  return {w,h};
+}
+function buildLayout(N,M,poles){
+  const rows=[];
+  if(poles){ if(M<3)return null; const d=180/(M-1);
+    for(let j=0;j<M;j++)rows.push({lat:90-j*d,h:d,pole:j===0||j===M-1,count:0}); }
+  else{ const d=180/M; for(let j=0;j<M;j++)rows.push({lat:90-(j+.5)*d,h:d,pole:false,count:0}); }
+  const inner=rows.filter(r=>!r.pole); let need=N-(poles?2:0);
+  if(!inner.length||need<inner.length*3)return null;
+  const w=inner.map(r=>Math.max(Math.cos(r.lat*D2R),.04)),sum=w.reduce((a,b)=>a+b,0);
+  inner.forEach((r,i)=>r.ideal=need*w[i]/sum);
+  const pairs=[];for(let i=0,j=inner.length-1;i<j;i++,j--)pairs.push([inner[i],inner[j]]);
+  const mid=inner.length%2?inner[(inner.length-1)/2]:null;
+  pairs.forEach(([a,b])=>{const v=Math.max(3,Math.round((a.ideal+b.ideal)/2));a.count=b.count=v;});
+  if(mid)mid.count=Math.max(3,Math.round(mid.ideal));
+  let tot=inner.reduce((s,r)=>s+r.count,0);
+  if(mid&&(need-tot)%2!==0){mid.count+=(need-tot)>0?1:-1;tot=inner.reduce((s,r)=>s+r.count,0);}
+  let g=0;
+  while(tot!==need&&g++<400){
+    const up=need>tot;let t=null,be=Infinity;
+    pairs.forEach(([a])=>{const e=up?(a.count-a.ideal):(a.ideal-a.count);
+      if(e<be&&(up||a.count>3)){be=e;t=a;}});
+    if(!t)break;
+    const pr=pairs.find(p=>p[0]===t)[1];t.count+=up?1:-1;pr.count=t.count;
+    tot=inner.reduce((s,r)=>s+r.count,0);
+  }
+  if(tot!==need&&mid){mid.count+=need-tot;tot=need;}
+  if(tot!==need||inner.some(r=>r.count<3))return null;
+  rows.forEach(r=>{if(r.pole)r.count=1;});
+  let maxAsp=0,sizes=[];
+  rows.forEach(r=>{const c=cellOf(r),t=tileOf(r);
+    if(!r.pole)maxAsp=Math.max(maxAsp,Math.abs(Math.log(c.w/c.h)));
+    sizes.push((t.w+t.h)/2);});
+  const ratio=Math.max(...sizes)/Math.min(...sizes);
+  return {rows,score:maxAsp*4.0+(ratio-1)*1.0};
+}
+function layoutFor(N){
+  let best=null;
+  for(const p of [true,false])for(let M=3;M<=10;M++){
+    const c=buildLayout(N,M,p);if(c&&(!best||c.score<best.score))best=c;}
+  return best;
+}
+function spreadOrder(slots){
+  const n=slots.length; if(!n)return [];
+  const F=new THREE.Vector3(0,0,1); let first=0,bd=-2;
+  slots.forEach((s,i)=>{const d=s.dir.dot(F);if(d>bd){bd=d;first=i;}});
+  const used=[first],rest=[];
+  for(let i=0;i<n;i++) if(i!==first) rest.push(i);
+  while(rest.length){
+    let bi=0,best=-1;
+    rest.forEach((idx,i)=>{let dmin=Infinity;
+      for(const u of used){const d=slots[idx].dir.distanceToSquared(slots[u].dir);if(d<dmin)dmin=d;}
+      if(dmin>best){best=dmin;bi=i;}});
+    used.push(rest.splice(bi,1)[0]);
+  }
+  return used;
+}
+
+/* ===== 描画 ===== */
+function dirOf(lon,lat){const c=Math.cos(lat);return new THREE.Vector3(c*Math.sin(lon),Math.sin(lat),c*Math.cos(lon));}
+function patch(R,hw,hh,seg){
+  const g=new THREE.PlaneGeometry(2,2,seg,seg);
+  const tw=Math.tan(hw),th=Math.tan(hh),p=g.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.set(p.getX(i)*tw,p.getY(i)*th,1).normalize().multiplyScalar(R);
+    p.setXYZ(i,v.x,v.y,v.z-R);}
+  p.needsUpdate=true;return g;
+}
+const VS=`varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+/* sel は「選ばれて削除待ちの状態」。0 のときは今までと完全に同じ絵になる */
+const FS=`uniform sampler2D m;uniform float o;uniform float sel;varying vec2 v;
+void main(){vec3 c=texture2D(m,v).rgb;
+  c=mix(c,c*0.34,sel);
+  gl_FragColor=vec4(c*(gl_FrontFacing?1.:.24),o);}`;
+function tex(seed){
+  const s=256,c=document.createElement("canvas");c.width=c.height=s;
+  const x=c.getContext("2d"),h=(seed*47)%360,g=x.createLinearGradient(0,0,s,s);
+  g.addColorStop(0,`hsl(${h} 38% 34%)`);g.addColorStop(1,`hsl(${(h+50)%360} 30% 11%)`);
+  x.fillStyle=g;x.fillRect(0,0,s,s);
+  x.strokeStyle="rgba(255,255,255,.13)";x.lineWidth=2;x.strokeRect(10,10,s-20,s-20);
+  return new THREE.CanvasTexture(c);
+}
+function wireSphere(R){
+  const g=new THREE.Group(),m=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.3});
+  for(let k=-4;k<=4;k++){
+    const lat=k*20*D2R,r=Math.cos(lat)*R,y=Math.sin(lat)*R,p=[];
+    for(let i=0;i<=72;i++){const a=i/72*TAU;p.push(new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r));}
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),m));}
+  for(let k=0;k<9;k++){
+    const lon=k*20*D2R,p=[];
+    for(let i=0;i<=72;i++){const a=i/72*TAU;
+      p.push(new THREE.Vector3(Math.cos(a)*Math.sin(lon)*R,Math.sin(a)*R,Math.cos(a)*Math.cos(lon)*R));}
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),m));}
+  return g;
+}
+
+const R=2.3, FRONT=new THREE.Vector3(0,0,1);
+const loader=new THREE.TextureLoader(); loader.setCrossOrigin("anonymous");
+
+function makeSphere(canvas,opt){
+  const o=Object.assign({wire:false,speed:.0018,fill:.86,gain:.006,boost:2.2,
+                         friction:.984,scrollable:false,pick:false,editPick:false,
+                         keep:null,onPick:null,onUnpick:null,seed:0},opt);
+  let rn;
+  try{ rn=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true}); }
+  catch(e){ return {setTracks(){},faceTile(){},forceSize(){},burst(){},
+                    pickedTrack(){return null;},clearPick(){}}; }
+  const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(68,1,.1,100),root=new THREE.Group();
+  sc.add(root);
+  if(o.wire) root.add(wireSphere(R));
+  let tiles=[];
+
+  function setTracks(list){
+    unpick();
+    tiles.forEach(m=>root.remove(m)); tiles=[];
+    const N=Math.max(MINN,list.length), L=layoutFor(N); if(!L)return;
+    const slots=[];
+    L.rows.forEach((row,ri)=>{
+      const lat=row.lat*D2R,dlon=TAU/row.count,off=(ri%2)*dlon*.5;
+      const t=tileOf(row), geo=patch(R,t.w/2,t.h/2,8);
+      for(let i=0;i<row.count;i++){
+        const lon=row.pole?0:off+i*dlon;
+        slots.push({lon,lat,geo,dir:dirOf(lon,lat)});
+      }
+    });
+    const order=spreadOrder(slots);
+    list.forEach((tr,k)=>{
+      const d=slots[order[k]]; if(!d)return;
+      const c=d.dir;
+      const east=new THREE.Vector3(Math.cos(d.lon),0,-Math.sin(d.lon));
+      const north=new THREE.Vector3(-Math.sin(d.lat)*Math.sin(d.lon),Math.cos(d.lat),
+                                    -Math.sin(d.lat)*Math.cos(d.lon)).normalize();
+      const mat=new THREE.ShaderMaterial({
+        uniforms:{m:{value:tex(k+o.seed*13)},o:{value:0},sel:{value:0}},
+        vertexShader:VS,fragmentShader:FS,side:THREE.DoubleSide,transparent:true});
+      const me=new THREE.Mesh(d.geo,mat);
+      me.position.copy(c).multiplyScalar(R);
+      me.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(east,north,c));
+      me.userData={dir:c.clone(),track:tr,scale:1};
+      root.add(me);tiles.push(me);
+      if(tr&&tr.artwork) loader.load(tr.artwork,t=>{mat.uniforms.m.value=t;},undefined,()=>{});
+    });
+  }
+
+  const qt=new THREE.Quaternion(),Yax=new THREE.Vector3(0,1,0),ax=new THREE.Vector3();
+  let spinAxis=new THREE.Vector3(0,1,0),spin=0,down=false,px=0,py=0,
+      anim=null,extra=0,picked=null,snapWait=false,tDown=0,moved=0;
+
+  canvas.style.touchAction=o.scrollable?"pan-y":"none";
+  canvas.addEventListener("pointerdown",e=>{
+    if(picked) unpick();
+    down=true;px=e.clientX;py=e.clientY;spin=0;anim=null;
+    tDown=performance.now();moved=0;
+    canvas.setPointerCapture(e.pointerId);});
+  document.addEventListener("pointerdown",e=>{
+    /* 「どこを触っても解除」は維持する。ただし自分の操作パネルだけは例外にしないと
+       ボタンを押した瞬間に解除されて押せなくなる */
+    if(!picked) return;
+    if(canvas.contains(e.target)) return;
+    if(o.keep && e.target && e.target.closest && e.target.closest(o.keep)) return;
+    unpick();
+  });
+  canvas.addEventListener("pointermove",e=>{
+    if(!down)return;
+    const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;
+    const len=Math.hypot(dx,dy);if(len<.01)return;
+    moved+=len;
+    ax.set(dy,dx,0).normalize();
+    const a=len*o.gain;
+    root.quaternion.premultiply(qt.setFromAxisAngle(ax,a));
+    spinAxis.copy(ax);spin=a;
+    if(picked)unpick();
+  });
+  const up=e=>{
+    if(!down)return; down=false;
+    /* 編集用の球だけ、短く触っただけならタップ扱いにしてその1枚を選ぶ */
+    if(o.editPick && performance.now()-tDown<320 && moved<12){ spin=0; tapAt(e); return; }
+    spin*=o.boost; if(o.pick&&spin>.02)snapWait=true;
+  };
+  canvas.addEventListener("pointerup",up);
+  canvas.addEventListener("pointercancel",up);
+
+  function unpick(){ if(!picked)return;
+    picked.material.depthTest=true;picked.renderOrder=0;picked=null;
+    if(o.onUnpick) o.onUnpick(); }
+  function markPicked(m){
+    picked=m; m.material.depthTest=false; m.renderOrder=10;
+    if(o.onPick) o.onPick(m.userData.track||{});
+  }
+  function faceAndPick(m,sp){
+    anim={from:root.quaternion.clone(),to:m.quaternion.clone().invert(),t:0,sp,after:()=>markPicked(m)};
+  }
+  function doPick(){
+    let best=null,bd=-2;const w=new THREE.Vector3();
+    tiles.forEach(m=>{w.copy(m.userData.dir).applyQuaternion(root.quaternion);
+      const d=w.dot(FRONT);if(d>bd){bd=d;best=m;}});
+    if(!best)return;
+    faceAndPick(best,1/48);
+  }
+  const rc=new THREE.Raycaster();
+  function tapAt(e){
+    if(!tiles.length)return;
+    const r=canvas.getBoundingClientRect();
+    const nd=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,
+                               -((e.clientY-r.top)/r.height)*2+1);
+    rc.setFromCamera(nd,cam);
+    const hits=rc.intersectObjects(tiles,false);
+    if(!hits.length)return;          /* 何も無い所を触ったら選ばない */
+    faceAndPick(hits[0].object,1/40);
+  }
+  function faceTile(i){const m=tiles[i];if(!m)return;
+    anim={from:root.quaternion.clone(),to:m.quaternion.clone().invert(),t:0,sp:1/34,after:null};spin=0;}
+
+  let lw=0,lh=0;
+  function size(){
+    const p=canvas.parentElement,w=p.clientWidth,h=p.clientHeight;
+    if(!w||!h||(w===lw&&h===lh))return; lw=w;lh=h;
+    rn.setSize(w,h,false);cam.aspect=w/h;
+    const half=68*D2R/2,nar=Math.min(cam.aspect,1);
+    cam.position.set(0,0,Math.max(R*2.9,R*1.14/(o.fill*Math.tan(half)*nar)));
+    cam.lookAt(0,0,0);cam.updateProjectionMatrix();
+  }
+  function loop(){
+    try{
+      size();
+      tiles.forEach(m=>{const u=m.material.uniforms.o;if(u.value<1)u.value=Math.min(1,u.value+.05);});
+      if(anim){
+        anim.t=Math.min(1,anim.t+anim.sp);
+        root.quaternion.slerpQuaternions(anim.from,anim.to,1-Math.pow(1-anim.t,3));
+        if(anim.t>=1){const cb=anim.after;anim=null;if(cb)cb();}
+      }else if(!down && !picked){          /* ピックアップ中は止める */
+        if(spin>.00035){root.quaternion.premultiply(qt.setFromAxisAngle(spinAxis,spin));spin*=o.friction;
+          if(o.pick&&snapWait&&spin<=.0022){snapWait=false;doPick();}}
+        root.quaternion.premultiply(qt.setFromAxisAngle(Yax,o.speed+extra));
+        extra*=.972;
+      }
+      tiles.forEach(m=>{const d=m.userData,want=(m===picked)?1.7:1;
+        d.scale+=(want-d.scale)*.12;m.scale.setScalar(d.scale);
+        m.position.copy(d.dir).multiplyScalar(R+(d.scale-1)/.7*.45);
+        if(o.editPick){const u=m.material.uniforms.sel,ws=(m===picked)?1:0;
+          u.value+=(ws-u.value)*.16;}});
+      rn.render(sc,cam);
+    }catch(e){
+      const el=document.getElementById("err");
+      el.style.display="block";el.textContent="ERR: "+((e&&e.message)||e);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  return {setTracks,faceTile,forceSize(){lw=0;lh=0;size();},burst(v){extra=v;},
+          pickedTrack(){return picked?(picked.userData.track||null):null;},
+          clearPick(){unpick();}};
+}
+
+/* ===== 生成 ===== */
+const hero=makeSphere(document.getElementById("cvHero"),
+  {scrollable:true,gain:.005,boost:2.2,friction:.984,seed:1});
+
+const edit=makeSphere(document.getElementById("cvEdit"),
+  {wire:true,speed:.0024,gain:.006,boost:2.4,friction:.984,seed:9,
+   editPick:true, keep:"#editPick",
+   onPick:tr=>{
+     document.getElementById("epT").textContent=tr.title||"—";
+     document.getElementById("epA").textContent=tr.artist||"";
+     document.getElementById("editPick").classList.add("on");
+   },
+   onUnpick:()=>document.getElementById("editPick").classList.remove("on")});
+edit.setTracks([]);
+/* chosen  = 自分がいま作っているスフィア（編集画面のもの）
+   viewing = いま完成画面に映っているスフィア（他人のものかもしれない）
+   この2つを同じ変数にしていると、他人のスフィアを開いただけで
+   自分の編集画面が埋まってしまう */
+let done=null, chosen=[], viewing=[], results=[];
+
+/* ===== 検索 ===== */
+function jsonp(url){
+  return new Promise((res,rej)=>{
+    const n="__c"+Math.random().toString(36).slice(2),s=document.createElement("script");
+    const tm=setTimeout(()=>{cl();rej();},2000);
+    function cl(){clearTimeout(tm);delete window[n];s.remove();}
+    window[n]=d=>{cl();res(d);};s.onerror=()=>{cl();rej();};
+    s.src=url+"&callback="+n;document.head.appendChild(s);
+  });
+}
+/* ===================================================================
+   番号から曲情報を取る（lookup）。検索とは別の窓口。
+   ・17件ずつに分けて問い合わせる（URL が長くなりすぎないように）
+   ・取れなかった曲も枠は残す。曲数が変わると配置が組み直されて
+     別の形の球になってしまうため、ここで数を減らしてはいけない
+   =================================================================== */
+async function lookupTracks(ids){
+  const got=new Map();
+  for(let i=0;i<ids.length;i+=17){
+    const c=ids.slice(i,i+17);
+    try{
+      const d=await jsonp(`https://itunes.apple.com/lookup?id=${c.join(",")}&country=JP&entity=song`);
+      ((d&&d.results)||[]).forEach(r=>{
+        if(r.wrapperType!=="track")return;
+        got.set(String(r.trackId),{
+          id:String(r.trackId), title:r.trackName||"", artist:r.artistName||"",
+          artwork:(r.artworkUrl100||"").replace(/\/\d+x\d+bb\./,"/600x600bb."),
+          url:r.trackViewUrl||null});
+      });
+    }catch(e){}
+  }
+  return ids.map(id=>got.get(id)||{id,title:"",artist:"",artwork:null,url:null});
+}
+
+async function runSearch(){
+  const q=document.getElementById("q").value.trim(),rows=document.getElementById("rows");
+  if(!q){rows.innerHTML="";results=[];return;}
+  rows.innerHTML=`<div class="note">検索中…</div>`;
+  try{
+    const d=await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&country=JP&media=music&entity=song&limit=${SEARCH_LIMIT}`);
+    const list=(d&&d.results)?d.results:[];
+    results=list.map(r=>({id:String(r.trackId),title:r.trackName,artist:r.artistName,
+      artwork:(r.artworkUrl100||"").replace(/\/\d+x\d+bb\./,"/600x600bb."),url:r.trackViewUrl}));
+    if(!results.length)throw 0;
+    drawRows();
+  }catch(e){
+    /* 偽の曲を出してはいけない。それをスフィアに入れられると、
+       曲番号でないものがアドレスに書き込まれ、共有した URL が開けなくなる */
+    results=[];
+    drawRows("Apple の検索に届きませんでした。少し待ってから、もう一度お試しください。");
+  }
+}
+function drawRows(msg){
+  const rows=document.getElementById("rows");rows.innerHTML="";
+  if(msg)rows.insertAdjacentHTML("beforeend",`<div class="note">${msg}</div>`);
+  results.forEach(r=>{
+    const on=chosen.some(c=>c.id===r.id),el=document.createElement("div");
+    el.className="row";
+    el.innerHTML=`${r.artwork?`<img class="art" src="${r.artwork}">`:`<div class="art"></div>`}
+      <div class="meta"><div class="t">${r.title}</div><div class="a">${r.artist}</div></div>
+      <button class="add${on?" done":""}">${on?"✓":"+"}</button>`;
+    el.querySelector(".add").onclick=()=>toggle(r);
+    rows.appendChild(el);
+  });
+  if(!results.length&&!msg)rows.innerHTML=`<div class="note">見つかりませんでした</div>`;
+}
+function toggle(r){
+  const i=chosen.findIndex(c=>c.id===r.id);
+  if(i>=0){chosen.splice(i,1);edit.setTracks(chosen);}
+  else{ if(chosen.length>=MAXN){ toast(`入れられるのは${MAXN}曲までです`); return; }
+    chosen.push(r);edit.setTracks(chosen);edit.faceTile(chosen.length-1);}
+  refresh();drawRows();
+}
+function refresh(){
+  /* 上限の 46 は出さない。12 で完成できるのに「46まで選ぶゲーム」に
+     見えてしまい、選ぶ作業が重く感じられるため */
+  document.getElementById("count").innerHTML = chosen.length<MINN
+    ? `<b>${chosen.length}</b> / ${MINN}曲で完成`
+    : `<b>${chosen.length}</b> 曲`;
+  const b=document.getElementById("btnDone"), ok=chosen.length>=MINN;
+  b.classList.toggle("ready",ok);
+  b.textContent = ok ? "Complete" : `あと${MINN-chosen.length}曲`;
+  const bc=document.getElementById("btnClear");
+  bc.classList.toggle("on",chosen.length>0);
+  if(!chosen.length) disarmClear();
+}
+
+/* ===== 曲を外す ===== */
+document.getElementById("editMinus").onclick=()=>{
+  const tr=edit.pickedTrack(); if(!tr)return;
+  const i=chosen.findIndex(c=>c.id===tr.id);
+  if(i>=0) chosen.splice(i,1);
+  edit.setTracks(chosen);          /* 中で解除もされる */
+  refresh(); drawRows();
+  toast("外しました");
+};
+
+let clearTimer=null;
+const btnClear=document.getElementById("btnClear");
+function disarmClear(){
+  clearTimeout(clearTimer); clearTimer=null;
+  btnClear.textContent="全てクリア"; btnClear.classList.remove("armed");
+}
+btnClear.onclick=()=>{
+  if(!clearTimer){                 /* 1回目は確認に変わるだけ */
+    btnClear.textContent="本当に消す？"; btnClear.classList.add("armed");
+    clearTimer=setTimeout(disarmClear,3000); return;
+  }
+  disarmClear();
+  chosen=[]; edit.setTracks(chosen); refresh(); drawRows();
+  toast("全て外しました");
+};
+
+/* ===== 共有 ===== */
+let toastTimer=null;
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("on"),1800);
+}
+/* ===================================================================
+   アドレスと曲の相互変換。
+   形式は ?t=947748526.1162080193.… （曲番号をドットでつないだだけ）
+   =================================================================== */
+let shareQuery=null;          /* 完成後に「?t=…」が入る */
+
+function readIds(){
+  const m=/[?&]t=([^&]+)/.exec(location.search);
+  if(!m)return null;
+  const ids=decodeURIComponent(m[1]).split(".").filter(s=>/^\d+$/.test(s));
+  return ids.length>=MINN ? ids.slice(0,MAXN) : null;   /* 壊れた値は無視する */
+}
+function writeUrl(list){
+  shareQuery="?t="+list.map(t=>t.id).join(".");
+  /* ページ遷移はしない。アドレスだけ書き換える（演出を途切れさせないため）。
+     ファイルを直接開いた場合など、拒否される環境があるので必ず包む */
+  try{ history.pushState(null,"",location.pathname+shareQuery); }catch(e){}
+}
+/* 戻る／進むでアドレスが変わったら、その内容で開き直す。
+   これが無いと、戻ってもアドレスだけ変わって画面が変わらない */
+addEventListener("popstate",()=>location.reload());
+
+/* 上の書き換えが拒否されても、コピーと共有は正しい URL を返す */
+function sphereUrl(){
+  if(!shareQuery) return location.href;
+  return location.href.split("?")[0].split("#")[0]+shareQuery;
+}
+
+async function copyLink(){
+  const url=sphereUrl();
+  try{
+    await navigator.clipboard.writeText(url);
+    toast("リンクをコピーしました"); return;
+  }catch(e){}
+  try{
+    const ta=document.createElement("textarea");
+    ta.value=url; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    const ok=document.execCommand("copy");
+    ta.remove();
+    toast(ok?"リンクをコピーしました":"コピーできませんでした");
+  }catch(e){ toast("コピーできませんでした"); }
+}
+async function shareSphere(){
+  const url=sphereUrl();
+  if(navigator.share){
+    try{ await navigator.share({title:"Sphere of U",url}); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }   /* 本人が閉じただけ */
+  }
+  copyLink();
+}
+function applySNS(){
+  document.querySelectorAll("[data-sns]").forEach(a=>{
+    const u=SNS[a.dataset.sns];
+    if(u){ a.href=u; a.target="_blank"; a.rel="noopener"; }
+  });
+}
+applySNS();
+
+/* ===== 画面移動 ===== */
+const fader=document.getElementById("fader");
+function scrollCreate(){document.getElementById("createSec").scrollIntoView({behavior:"smooth",block:"start"});}
+function toCreate(){
+  if(!document.getElementById("pageMain").classList.contains("on")) swap("pageMain",scrollCreate);
+  else scrollCreate();
+}
+function home(){
+  /* 他人のスフィアを見ていた状態から「トップに戻る」なら、アドレスも戻す。
+     作りかけの曲は消さない（消すと戻す手段が無くなるため） */
+  if(shareQuery){
+    shareQuery=null;
+    try{ history.pushState(null,"",location.pathname); }catch(e){}
+  }
+  swap("pageMain",()=>window.scrollTo(0,0));
+}
+function swap(id,after){
+  fader.classList.add("on");
+  setTimeout(()=>{
+    document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id===id));
+    window.scrollTo(0,0);
+    document.getElementById("bar").style.display = id==="pageMain"?"block":"none";
+    if(after)after();
+    requestAnimationFrame(()=>fader.classList.remove("on"));
+  },400);
+}
+/* 完成画面の球を組む。Complete から来る場合と、共有 URL から
+   いきなり来る場合の両方がここを通る（中身は元のまま） */
+function paintDone(list){
+  viewing=list;
+  if(!done) done=makeSphere(document.getElementById("cvDone"),
+    {speed:.0018,gain:.006,boost:2.4,friction:.984,pick:true,seed:9,keep:"#pick",
+     onPick:tr=>{
+       document.getElementById("pickT").textContent=tr.title||"—";
+       document.getElementById("pickA").textContent=tr.artist||"";
+       const go=document.getElementById("pickGo");
+       if(tr.url){ go.href=tr.url; go.style.visibility="visible"; }
+       else{ go.removeAttribute("href"); go.style.visibility="hidden"; }
+       document.getElementById("pick").classList.add("on");
+     },
+     onUnpick:()=>document.getElementById("pick").classList.remove("on")});
+  done.setTracks(list);done.forceSize();
+  setTimeout(()=>document.getElementById("share").classList.add("on"),250);
+}
+function finish(){
+  if(chosen.length<MINN)return;
+  edit.clearPick();
+  document.getElementById("ballWrap").style.transform="scale(1.7)";
+  edit.burst(.02);
+  document.getElementById("bar").style.opacity=0;
+  writeUrl(chosen);                       /* ここでアドレスに曲が入る */
+  setTimeout(()=>{
+    swap("pageDone",()=>{ paintDone(chosen); });
+    document.getElementById("ballWrap").style.transform="";
+    document.getElementById("bar").style.opacity=1;
+  },780);
+}
+function remix(){
+  document.getElementById("share").classList.remove("on");
+  document.getElementById("pick").classList.remove("on");
+  if(done) done.clearPick();
+  swap("pageMain",()=>{
+    chosen=viewing.slice();          /* ここで初めて自分のものになる */
+    edit.setTracks(chosen);edit.forceSize();refresh();drawRows();
+    setTimeout(scrollCreate,60);});
+}
+
+/* ===================================================================
+   起動。アドレスに ?t=… があれば共有されたスフィア、無ければトップ。
+   どちらも同じ lookupTracks() を通る。
+   =================================================================== */
+async function boot(){
+  refresh(); runSearch();
+  const ids=readIds();
+  if(ids){
+    /* 共有 URL から来た人：トップを飛ばして、いきなり完成画面を出す */
+    shareQuery="?t="+ids.join(".");
+    document.getElementById("pageMain").classList.remove("on");
+    document.getElementById("pageDone").classList.add("on");
+    document.getElementById("bar").style.display="none";
+    const list=await lookupTracks(ids);
+    paintDone(list);             /* 見えるのは完成画面だけ。編集画面は空のまま */
+    /* トップのヒーローは常にサイト自身の球。完成画面を出したあとで読み込む */
+    hero.setTracks(await lookupTracks(TRACK_IDS));
+  }else{
+    hero.setTracks(await lookupTracks(TRACK_IDS));
+  }
+}
+boot();
+
+/* ===== ヒーローのスクロール演出 ===== */
+const cA1=document.getElementById("cA1"),cA2=document.getElementById("cA2"),
+      cB1=document.getElementById("cB1"),cB2=document.getElementById("cB2"),
+      heroBall=document.querySelector(".heroBall");
+addEventListener("scroll",()=>{
+  const vh=innerHeight,y=window.scrollY||document.documentElement.scrollTop,SWAP=vh*.24;
+  const second=y>vh*.12;
+  cA1.style.opacity=cA2.style.opacity=second?0:1;
+  cB1.style.opacity=cB2.style.opacity=second?1:0;
+  const off=Math.max(0,y-SWAP),fade=clamp(off/(vh*.45),0,1);
+  heroBall.style.transform=`translate(-50%,calc(-50% - ${off}px))`;
+  heroBall.style.opacity=1-fade;
+  [cB1,cB2].forEach(el=>el.style.transform=`translateY(-${off}px)`);
+  if(second){cB1.style.opacity=cB2.style.opacity=1-fade;}
+},{passive:true});
+</script>
+</body>
+</html>
